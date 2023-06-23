@@ -1,60 +1,52 @@
 #pragma once
 
-#include <RTWeekend.h>
+#include <RTW.h>
+#include <Vec3.h>
 
-class Camera {
+class Camera{
 public:
-	Camera();
-	Camera(Position lookfrom, Position lookat, Vec3 vup, float vfov, float aspectRatio, float aperture, float focus_dist);
-	Ray GetRay(float s, float t) const;
-	
-public:
-	Vec3 camPos;
-	Vec3 lowerLeftCorner;
-	Vec3 horizontal;
-	Vec3 vertical;
-	Vec3 u, v, w;
-	float lensRadius;
+	Camera(	point3 lookfrom,	point3 lookat, 
+			vec3 vup,			float vfov, 
+			float wh_rate,		float apeture, 
+			float focus_dist,	float t0=0,	float t1=0);
+
+	Ray get_ray(float s, float t) const;
+
+private:
+	point3 origin;
+	point3 lower_left_corner;
+	vec3 horizontal;
+	vec3 vertical;
+	vec3 u, v, w; // 相机坐标
+	float lens_radius;
+	float time0, time1;
 };
 
-
-Camera::Camera() {
-	auto aspectRatio = 16.0 / 9.0;
-	auto viewportHeight = 2.0;
-	auto viewportWidth = aspectRatio * viewportHeight;
-	auto focal_length = 1.0;
-
-	camPos = Vec3(0, 0, 0);
-	horizontal = Vec3(viewportWidth, 0.0, 0.0);
-	vertical = Vec3(0.0, viewportHeight, 0.0);
-	lowerLeftCorner = camPos - horizontal / 2 - vertical / 2 - Vec3(0, 0, focal_length);
-}
-
-Camera::Camera(
-		Position lookfrom, Position lookat, 
-		Vec3 vup, float vfov, 
-		float aspectRatio, float aperture,
-		float focus_dist) {
-	auto theta = Degrees2Radians(vfov);
+Camera::Camera(	point3 lookfrom,	point3 lookat,
+				vec3 vup,			float vfov,
+				float wh_rate,		float aperture,
+				float focus_dist,	float t0, float t1) {
+	auto theta = degress2radians(vfov);
 	auto h = tan(theta / 2);
-	auto viewportHeight = 2.0 * h;
-	auto viewportWidth = aspectRatio * viewportHeight;
+	auto viewport_height = 2.0f * h;
+	auto viewport_width = wh_rate * viewport_height;
 
-	auto w = (lookfrom - lookat).Normalize();
-	auto u = vup.Cross(w).Normalize();
-	auto v = w.Cross(u);
+	w = normalize(lookfrom - lookat);
+	u = normalize(cross(vup, w));
+	v = cross(w, u);
 
-	camPos = lookfrom;
-	horizontal = focus_dist * viewportWidth * u;
-	vertical = focus_dist * viewportHeight * v;
-	lowerLeftCorner = camPos - horizontal / 2 - vertical / 2 - focus_dist * w;
+	origin = lookfrom;
+	horizontal = focus_dist * viewport_width * u;
+	vertical = focus_dist * viewport_height * v;
+	lower_left_corner = origin - horizontal / 2 - vertical / 2 - focus_dist * w;
 
-	lensRadius = aperture / 2;
+	lens_radius = aperture / 2; //光圈
+	time0 = t0;
+	time1 = t1;
 }
 
-Ray Camera::GetRay(float u, float v) const{
-	Vec3 rd = lensRadius * RandomInUnitSphere();
-	Vec3 offset = u * rd.x + v * rd.y;
-
-	return Ray(camPos + offset, lowerLeftCorner + u * horizontal + v * vertical - camPos - offset);
+Ray Camera::get_ray(float s, float t) const {
+	vec3 rd = lens_radius * random_in_unit_disk();
+	vec3 offset = u * rd.x + v * rd.y;
+	return Ray(origin + offset, lower_left_corner + s * horizontal + t * vertical - origin - offset, random_float(time0, time1));
 }
